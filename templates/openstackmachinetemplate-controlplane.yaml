@@ -1,0 +1,38 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: {{ .Release.Name }}-control-plane
+  namespace: {{ .Release.Name }}
+  labels:
+    cluster-name: {{ .Release.Name }}
+    cluster.x-k8s.io/cluster-name: {{ .Release.Name }}
+    cluster.x-k8s.io/control-plane: "true"
+    {{- include "capos-cluster.labels" . | nindent 4 }}
+spec:
+  template:
+    spec:
+      identityRef:
+        name: {{ include "capos-cluster.identitySecretName" . }}
+        cloudName: {{ .Values.capos.cloudName | quote }}
+      flavor: {{ include "capos-cluster.master.flavor" . | quote }}
+      image:
+        filter:
+          name: {{ include "capos-cluster.master.image" . | quote }}
+      {{- with .Values.master.rootVolume }}
+      rootVolume:
+        sizeGiB: {{ .sizeGiB | default $.Values.capos.rootVolume.sizeGiB }}
+        type: {{ .type | default $.Values.capos.rootVolume.type | quote }}
+        {{- $rootVolumeAZ := .availabilityZone | default $.Values.capos.rootVolumeAvailabilityZone }}
+        {{- if $rootVolumeAZ }}
+        availabilityZone:
+          from: Name
+          name: {{ $rootVolumeAZ | quote }}
+        {{- else }}
+        availabilityZone:
+          from: Machine
+        {{- end }}
+      {{- end }}
+      {{- $sshKey := include "capos-cluster.master.sshKeyName" . }}
+      {{- if $sshKey }}
+      sshKeyName: {{ $sshKey | quote }}
+      {{- end }}

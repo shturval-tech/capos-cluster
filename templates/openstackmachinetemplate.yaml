@@ -1,0 +1,41 @@
+{{- range $k, $v := .Values.workerNodes }}
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: {{ $.Release.Name }}-{{ $k }}
+  namespace: {{ $.Release.Name }}
+  labels:
+    cluster-name: {{ $.Release.Name }}
+    cluster.x-k8s.io/cluster-name: {{ $.Release.Name }}
+    node-role.kubernetes.io/{{ include "capos-cluster.nodeRole" $k }}: ""
+    {{- include "capos-cluster.labels" $ | nindent 4 }}
+spec:
+  template:
+    spec:
+      identityRef:
+        name: {{ include "capos-cluster.identitySecretName" $ }}
+        cloudName: {{ $.Values.capos.cloudName | quote }}
+      flavor: {{ $v.flavor | default $.Values.capos.flavor | quote }}
+      image:
+        filter:
+          name: {{ $v.image | default (include "capos-cluster.defaultImage" $) | quote }}
+      {{- $rootVolume := $v.rootVolume | default dict }}
+      rootVolume:
+        sizeGiB: {{ $rootVolume.sizeGiB | default $.Values.capos.rootVolume.sizeGiB }}
+        type: {{ $rootVolume.type | default $.Values.capos.rootVolume.type | quote }}
+        {{- $rootVolumeAZ := $rootVolume.availabilityZone | default $.Values.capos.rootVolumeAvailabilityZone }}
+        {{- $workerComputeAZ := $v.availabilityZone | default (include "capos-cluster.workerPrimaryAZ" $) }}
+        {{- if $rootVolumeAZ }}
+        availabilityZone:
+          from: Name
+          name: {{ $rootVolumeAZ | quote }}
+        {{- else }}
+        availabilityZone:
+          from: Machine
+        {{- end }}
+      {{- $sshKey := $v.sshKeyName | default $.Values.capos.sshKeyName }}
+      {{- if $sshKey }}
+      sshKeyName: {{ $sshKey | quote }}
+      {{- end }}
+---
+{{- end }}

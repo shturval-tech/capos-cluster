@@ -1,0 +1,10 @@
+.DS_Store
+*.orig
+*.tgz
+.git
+.gitignore
+.bzr/
+.bzrignore
+.hg/
+.hgignore
+.svn/

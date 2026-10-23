@@ -1,0 +1,32 @@
+{{- include "capos-cluster.validateAllowedDefaults" . }}
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackCluster
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Name }}
+  labels:
+    cluster.x-k8s.io/cluster-name: {{ .Release.Name | quote }}
+    {{- include "capos-cluster.labels" . | nindent 4 }}
+spec:
+  identityRef:
+    name: {{ include "capos-cluster.identitySecretName" . }}
+    cloudName: {{ .Values.capos.cloudName | quote }}
+  {{- if .Values.clusterAPI }}
+  controlPlaneEndpoint:
+    host: {{ .Values.clusterAPI }}
+    port: 6443
+  {{- end }}
+  externalNetwork:
+    id: {{ .Values.capos.externalNetworkID | quote }}
+  {{- include "capos-cluster.openstackClusterNetwork" . | nindent 2 }}
+  managedSecurityGroups:
+    allowAllInClusterTraffic: {{ .Values.capos.managedSecurityGroups.allowAllInClusterTraffic }}
+  apiServerLoadBalancer:
+    enabled: {{ .Values.capos.apiServerLoadBalancer.enabled }}
+  {{- $controlPlaneAZs := (include "capos-cluster.controlPlaneAZListYaml" . | fromYaml).azs | default (list) }}
+  {{- if gt (len $controlPlaneAZs) 0 }}
+  controlPlaneAvailabilityZones:
+  {{- range $az := $controlPlaneAZs }}
+  - {{ $az | quote }}
+  {{- end }}
+  {{- end }}

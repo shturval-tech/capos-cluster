@@ -1,0 +1,467 @@
+# Лицензия Штурвала
+licensetoken: "XXXXXXXX"
+# Имя хоста с зеркалом Штурвала
+systemregistry: myregistry.domain.tld
+
+# shturvalReleaseVersion: 2.11.0
+# kubeVersion: 1.33.1
+# shturvalReleaseVersion: 2.12.1
+# kubeVersion: 1.34.1
+# shturvalReleaseVersion: 2.13.1
+# kubeVersion: 1.34.3
+shturvalReleaseVersion: 2.14.0 # Версия устанавливаемого кластера Штурвал
+kubeVersion: 1.35.1 # Версия устанавливаемого Kubernetes
+
+# Актуальные образы в 2.14 для bootstrap NCI (pause) и cluster-autoscaler
+images:
+  pause: r.shturval.tech/pause:3.10.1
+  # clusterAutoscaler: r.shturval.tech/autoscaling/cluster-autoscaler:v1.35.1 # по умолчанию: r.shturval.tech/autoscaling/cluster-autoscaler:v{{ kubeVersion }}
+
+services:
+  # Минимальный набор сервисов для 2.14 - значение применятся только в момент инициализации кластера и изменения ни к чему не приведут
+  enabledservices:
+  - shturval-node-config
+  - shturval-trust-manager
+  - shturval-node-config-crds
+  - shturval-snapshotter
+  - shturval-metrics-collector-crds
+  - shturval-vip-provider
+  - shturval-caching-dns
+  - shturval-vip
+  - shturval-networking
+  - shturval-policy-manager-crds
+  - shturval-cert-manager
+  - shturval-services-crds
+  - shturval-snapshotter-crds
+  - shturval-services
+  - shturval-trust-manager-crds
+  - shturval-monitoring-crds
+  - shturval-update
+  - shturval-ingress-controller
+  - shturval-local-csi
+  - shturval-update-crds
+  - shturval-cert-manager-crds
+  disablesservices:
+  - shturval-metrics-collector
+  - shturval-log-collector-crds
+  - shturval-backup
+  - shturval-scanner
+  - shturval-cd
+  - shturval-policy-manager
+  - shturval-scanner-crds
+  - shturval-rollouts
+  - shturval-cd-crds
+  - shturval-rollouts-crds
+  - shturval-gateway-api-crds
+  - shturval-descheduler
+  - shturval-backup-crds
+  - shturval-log-collector
+  - shturval-cert-expiration
+
+# Конфигурация etcd
+etcd:
+  external: {}
+    # endpoints:
+    #   - "https://10.0.0.1:2379"
+    # caCrt: "conf/ext_etcd-ca.crt"    # CA сертификат от ETCD
+    # apiCrt: "conf/ext_etcd-client.crt" # Клиентский сертификат для подключения к ETCD
+    # apiKey: "conf/ext_etcd-client.key" # Ключ от клиентского сертификата
+  local:
+    dataDir: /var/lib/etcd
+    imageTag: v3.6.7
+    # extraArgs: {}
+
+# Настройки провайдера OpenStack (capos)
+capos:
+  # Имя cloud — используется как ключ в clouds.yaml и передаётся провайдеру
+  cloudName: "openstack"
+
+  # Имя Secret с clouds.yaml — если не задано, используется имя релиза
+  identitySecretName: ""
+
+  # Содержимое clouds.yaml (обязательно).
+  # Указывается конфиг конкретного облака без обёртки clouds.<name> —
+  # ключ подставляется автоматически из cloudName выше.
+  cloudsYaml:
+    auth:
+      auth_url: https://cloud.example.com/identity/v3/
+      username: myuser
+      password: mypassword
+      project_id: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      project_domain_id: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      user_domain_name: users
+    auth_type: password
+    identity_api_version: "3"
+    interface: public
+    region_name: RegionOne
+    verify: false
+
+  # CA сертификат OpenStack (опционально, оставьте пустым если используется verify: false)
+  cacert: ""
+
+  # ID внешней сети OpenStack (Floating IP network) — обязательно
+  externalNetworkID: ""
+
+  # Уже существующая сеть Neutron для узлов.
+  # Если задан id или name, CAPO не создаёт сеть, подсеть и роутер:
+  # managedSubnets не пишется, managedSubnetCIDR игнорируется.
+  # id и name одновременно задавать нельзя. Сеть должна уже содержать подсеть
+  # и маршрутизацию; чарт её не создаёт и при удалении кластера не удаляет.
+  network:
+    id: ""
+    name: ""
+  # пример:
+  # network:
+  #   id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  # network:
+  #   name: "existing-node-network"
+
+  # Подсети этой сети. Пустой список — все подсети сети
+  # (CAPO допускает не больше двух: одну IPv4 и одну IPv6).
+  # У каждой записи — id или name, не оба сразу. Имеет смысл только вместе с network.
+  subnets: []
+  # пример:
+  # subnets:
+  #   - id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  #   - name: "existing-node-subnet"
+
+  # CIDR управляемой подсети кластера — создаётся автоматически провайдером.
+  # Используется, только если capos.network.id и capos.network.name пустые.
+  managedSubnetCIDR: "10.1.0.0/24"
+
+  # Настройки security groups
+  managedSecurityGroups:
+    allowAllInClusterTraffic: true
+
+  # Балансировщик нагрузки для API сервера
+  apiServerLoadBalancer:
+    enabled: true
+
+  # Зоны доступности для control plane узлов (опционально, приоритетнее availabilityZones)
+  # Можно передать строку или список строк.
+  # пример:
+  # controlPlaneAZ:
+  #   - "MS1"
+  #   - "GZ1"
+  controlPlaneAZ: []
+
+  # Зоны доступности для worker узлов по умолчанию (опционально, приоритетнее availabilityZones)
+  # Можно передать строку или список строк.
+  # пример:
+  # defaultWorkerAZ:
+  #   - "MS1"
+  #   - "GZ1"
+  defaultWorkerAZ: []
+
+  # Флейвор OpenStack по умолчанию (используется если не задан в группе узлов)
+  flavor: "STD2-4-8"
+
+  # SSH ключ (имя ключа в OpenStack) — опционально
+  sshKeyName: ""
+
+  # Настройки root-тома по умолчанию
+  rootVolume:
+    sizeGiB: 60
+    type: "ceph-hdd"
+
+  # Имя сетевого интерфейса внутри образа ВМ для cloud-init (обязательно)
+  templateNetInterface: "eth0"
+
+  # Разрешить управление CSI через backend (рекомендуется "true")
+  allowEditCSI: "true"
+
+  # Подтип провайдера (обычно пустой)
+  providerSubtype: ""
+
+  # Отключить port security на портах ВМ (false — рекомендуется)
+  disablePortSecurity: "false"
+
+  # DNS-серверы для подсети узлов (опционально)
+  nodeSubnetDNS: []
+  # пример:
+  # nodeSubnetDNS:
+  #   - "8.8.8.8"
+  #   - "8.8.4.4"
+
+  # Явная AZ для root-тома — используется только если нужно задать AZ тома, отличную от compute-AZ узла.
+  # Если пусто и задан compute-AZ (controlPlaneAZ / defaultWorkerAZ / availabilityZones),
+  # root-том автоматически следует AZ машины (from: Machine).
+  # Если не задан ни один AZ — root-том создаётся без явной AZ.
+  rootVolumeAvailabilityZone: ""
+
+  # Список разрешённых флейворов для backend UI (запятая-разделённый список в аннотации)
+  # Если пусто — используется capos.flavor
+  allowedFlavors: []
+  # пример:
+  # allowedFlavors:
+  #   - "STD2-2-4"
+  #   - "STD2-4-8"
+  #   - "STD2-8-16"
+
+  # Список разрешённых типов томов для backend UI
+  # Если пусто — используется capos.rootVolume.type
+  allowedVolumeTypes: []
+  # пример:
+  # allowedVolumeTypes:
+  #   - "ceph-hdd"
+  #   - "ceph-ssd"
+
+  # Список зон доступности для backend UI
+  # Также используется как fallback для controlPlaneAvailabilityZones,
+  # если capos.controlPlaneAZ не задан.
+  availabilityZones: []
+  # пример:
+  # availabilityZones:
+  #   - "MS1"
+  #   - "GZ1"
+
+  # Соответствие версий Kubernetes образам VM (для аннотации template.shturval.tech/<version>)
+  # Используется backend для подбора образа при создании кластера
+  kubeTemplates:
+    v1.35.1: shturval-2.14.0
+  # пример:
+  # kubeTemplates:
+  #   v1.35.1: shturval-2.14.0
+  #   v1.34.3: shturval-2.13.1
+  #   v1.33.1: shturval-2.11
+
+  # Создавать ли провайдер-секрет в namespace capos-system (для Shturval backend)
+  # Установите false, если провайдер уже создан через backend UI
+  createProviderConfig: true
+
+master: # конфигурация control plane
+  replicas: 3 # количество master-узлов (рекомендуется 1 или 3)
+  # Флейвор OpenStack — если не задан, используется capos.flavor
+  flavor: ""
+  # Имя образа — если не задан, используется capos.kubeTemplates[<kubeVersion>]
+  image: ""
+  # SSH ключ — если не задан, используется capos.sshKeyName
+  sshKeyName: ""
+  # Настройки root-тома (наследуются из capos.rootVolume если не заданы)
+  rootVolume:
+    sizeGiB: 60
+    # type: ""              # если не задан, используется capos.rootVolume.type
+    # availabilityZone: ""  # явная AZ тома; если не задана — fallback: capos.rootVolumeAvailabilityZone,
+    #                       # затем from:Machine (если задан controlPlaneAZ / availabilityZones),
+    #                       # иначе без AZ
+  # labels:
+  #   - "my-custom-label=value"
+  # taints:
+  #   - key: mytaint/master
+  #     effect: NoSchedule
+  machineHealthCheck:
+    enabled: true
+    checks:
+      nodeStartupTimeoutSeconds: 0
+      unhealthyNodeConditions:
+        - status: Unknown
+          timeoutSeconds: 600
+          type: Ready
+        - status: "False"
+          timeoutSeconds: 600
+          type: Ready
+    remediation:
+      triggerIf:
+        unhealthyLessThanOrEqualTo: 100%
+
+workerNodes: # динамическая конфигурация worker-групп
+  # Для каждой группы: flavor, image, sshKeyName, rootVolume, availabilityZone — опциональны,
+  # при отсутствии используются значения из раздела capos:
+  # Группа workers получает label node-role.kubernetes.io/workers.
+  workers: # имя группы
+    replicas: 2 # кол-во узлов в группе; при autoscaling.enabled — минимум (min-size)
+    # autoscaling: # автомасштабирование группы через Cluster API cluster-autoscaler
+    #   enabled: true
+    #   maxMachines: 6 # максимум узлов (аннотация cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size); минимум = replicas
+    #   # CAPOS создаёт/удаляет VM в OpenStack при scale up/down (нужны квота/ресурсы и образ).
+    #   # На management-кластере должен существовать ClusterRole shturval-cluster-autoscaler (ставит платформа).
+    #   # При enabled чарт не пишет MachineDeployment.spec.replicas (владеет autoscaler) — иначе helm-diff/template даёт вечный drift.
+    # availabilityZone: "MS1"  # compute-AZ (failureDomain); fallback: capos.defaultWorkerAZ → без AZ
+    # flavor: ""     # если не задан — capos.flavor
+    # image: ""      # если не задан — capos.kubeTemplates[<kubeVersion>]
+    # sshKeyName: "" # если не задан — capos.sshKeyName
+    rootVolume:
+      sizeGiB: 60
+      # type: ""              # если не задан — capos.rootVolume.type
+      # availabilityZone: ""  # явная AZ тома; если не задана — fallback: capos.rootVolumeAvailabilityZone,
+      #                       # затем from:Machine (если задан AZ группы / defaultWorkerAZ / availabilityZones),
+      #                       # иначе без AZ
+    labels: # лейблы, которые будут назначены узлам данной группы в подчинённом кластере
+      - "node.longhorn.io/create-default-disk=true"
+    # taints:
+    #   - key: mytaint/worker
+    #     effect: NoSchedule
+    machineHealthCheck:
+      enabled: true
+      checks:
+        nodeStartupTimeoutSeconds: 0
+        unhealthyNodeConditions:
+          - status: Unknown
+            timeoutSeconds: 600
+            type: Ready
+          - status: "False"
+            timeoutSeconds: 600
+            type: Ready
+      remediation:
+        triggerIf:
+          unhealthyLessThanOrEqualTo: 40%
+
+  infra: # группа infra-узлов (для сервисов мониторинга, логирования и т.п.)
+    replicas: 0
+    # availabilityZone: ""  # compute-AZ (failureDomain); fallback: capos.defaultWorkerAZ → availabilityZones[0] → без AZ
+    rootVolume:
+      sizeGiB: 60
+    labels:
+      - "my-custom-label-for-infra=myvalue"
+    taints:
+      - key: mytaint/infra
+        effect: NoSchedule
+    machineHealthCheck:
+      enabled: true
+      checks:
+        nodeStartupTimeoutSeconds: 0
+        unhealthyNodeConditions:
+          - status: Unknown
+            timeoutSeconds: 600
+            type: Ready
+          - status: "False"
+            timeoutSeconds: 600
+            type: Ready
+      remediation:
+        triggerIf:
+          unhealthyLessThanOrEqualTo: 40%
+
+  ingress: # группа ingress-узлов
+    replicas: 0
+    # availabilityZone: ""  # compute-AZ (failureDomain); fallback: capos.defaultWorkerAZ → availabilityZones[0] → без AZ
+    rootVolume:
+      sizeGiB: 60
+    labels:
+      - "node-role.kubernetes.io/ingress="
+    taints:
+      - key: node-role.kubernetes.io/ingress
+        effect: NoSchedule
+    machineHealthCheck:
+      enabled: true
+      checks:
+        nodeStartupTimeoutSeconds: 0
+        unhealthyNodeConditions:
+          - status: Unknown
+            timeoutSeconds: 600
+            type: Ready
+          - status: "False"
+            timeoutSeconds: 600
+            type: Ready
+      remediation:
+        triggerIf:
+          unhealthyLessThanOrEqualTo: 40%
+
+# Сеть подов в кластере
+podCIDR: 172.16.0.0/16
+# Сеть сервисов в кластере
+serviceCIDR: 10.96.0.0/12
+
+# IP адрес для kube-apiserver (Floating IP от OpenStack LB).
+# Если задан — добавляется в controlPlaneEndpoint и certSANs.
+# Если не задан — CAPOS назначит автоматически после создания LB.
+clusterAPI: ""
+# Для CAPOS API обслуживается облачным LB (Octavia); keepalived/kube-vip обычно не нужны.
+useExternalKubeAPILB: true
+
+# Ингресс записи менеджмент-кластера
+authMgmtIngress: "shturval.app.mgmt.example.com"
+logsMgmtIngress: "logs.app.mgmt.example.com"
+metricsMgmtIngress: "vminsert.app.mgmt.example.com"
+
+# Ингресс запись создаваемого кластера
+ingress: "app.cluster.example.com"
+# IP адрес Ingress контроллера или внешнего балансировщика
+ingressVip: ""
+# Используется ли внешний балансировщик для Ingress
+useExternalIngressLB: true
+
+# Путь до конфигурации кластера (для shturvald и backend)
+clusterConfigFile: "conf/clusterConfig.yaml"
+
+auditPolicy:
+  # Путь до шаблона audit конфигурации
+  template: "conf/audit_policy_template.yaml"
+  # Путь расположения файла audit на master нодах
+  location: "/etc/kubernetes/audit_policy.yaml"
+
+# Kubeadm patches — патчи для компонентов control plane (kube-apiserver, etcd и любые другие).
+# Каждый ключ кроме directory — отдельный файл в каталоге патчей.
+# Обязательно: patchTemplate. Опционально: filename (для kubeapi по умолчанию kube-apiserver.yaml, иначе <ключ>.yaml).
+kubeadmPatches:
+  # Директория с патчами на узле.
+  # Рекомендуемое значение: "/etc/kubernetes/manifests-pathes"
+  directory: ""
+  # kubeapi:
+  #   patchTemplate: "conf/kube-apiserver.yaml"
+  #   resources:
+  #     limits:
+  #       memory: "1024Mi"
+  #       cpu: "2"
+  #     requests:
+  #       memory: "500Mi"
+  #       cpu: "250m"
+  # etcd:
+  #   patchTemplate: "conf/etcd.yaml"
+  #   resources:
+  #     limits:
+  #       memory: "500Mi"
+  #       cpu: "2"
+  #     requests:
+  #       memory: "500Mi"
+  #       cpu: "2"
+
+# Настройка NTP
+ntp:
+  ntpservers: []
+  timezone: Europe/Moscow
+
+# Инициализация узлов (ShturvalInit / nci.json); образ pause задаётся в images.pause
+# nodeInit:
+#   pauseImage: "r.shturval.tech/pause:3.10.1" # fallback, если images.pause не задан
+
+# Secure installation (аудит, шифрование etcd и т.д.)
+secure: true
+
+# Пароль для подключения к opensearch (отправка логов)
+opensearchfluentbitpass: "mysecretpassword"
+
+# Сабчарт настройки VMAlert/VMRule в менеджмент-кластере под этот клиентский кластер
+capos-cluster-vm:
+  enable: false
+
+# Сабчарт добавления datasource этого кластера в grafana менеджмент-кластера
+capos-cluster-grafana:
+  enable: false
+
+# Конфигурация ClusterConfig CR
+clusterConfigProfileName: "" # имя профиля кластера (если не указан, используется default-client-cluster-profile)
+clusterType: "client" # тип кластера: client или platform (management)
+
+# Конфигурация CSI в ClusterConfig
+# csi:
+#   - defaultStorageClass: true
+#     serviceConfigName: shturval-local-csi
+#   - defaultStorageClass: false
+#     serviceConfigName: shturval-capos-csi
+#     providerSecretRef:
+#       name: openstack-cloud-config
+#       namespace: mycluster
+
+# Конфигурация ACME для ingress сертификатов
+# acme:
+#   serverURL: "https://issuer.example.com/acme/directory"
+#   rootCABundle: "<base64>"
+#   email: "admin@example.com"
+
+# Wildcard сертификат для ingress (base64)
+# ingressCert: ""
+# ingressKey: ""
+
+# Intermediate CA для ingress (base64)
+# caCert: ""
+# caKey: ""
