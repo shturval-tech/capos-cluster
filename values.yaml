@@ -79,9 +79,11 @@ ingressControllerType: nginx
 # deletePersistentVolumes: false
 
 infrastructureProvider:
-  # auto — создать InfrastructureProvider, если CRD уже есть и объект не занят другим релизом
-  # true — создать всегда; false — не создавать
-  create: auto
+  # Строка, значение указывать в кавычках: "auto", "true" или "false".
+  #   "auto"  — создать InfrastructureProvider, если CRD уже есть и объект не занят другим релизом
+  #   "true"  — создать всегда
+  #   "false" — не создавать
+  create: "auto"
 
 # Конфигурация etcd
 etcd:
@@ -97,6 +99,14 @@ etcd:
     # Переопределить, если нужно:
     # imageTag: v3.6.14-324917
     # extraArgs: {}
+
+  # Seed-фраза для ключа шифрования etcd (encryption-at-rest).
+  # ОБЯЗАТЕЛЬНА для нового кластера при secure: true: без неё чарт остановит рендер,
+  # так как шифрование не будет безопасным.
+  # При апгрейде уже установленного кластера не нужна: сохраняется прежний ключ.
+  # Сохраните значение: оно понадобится при пересоздании кластера.
+  # Пример: `openssl rand -base64 32`
+  encryptionSeed: ""  # ЗАПОЛНИТЕ для нового кластера, если secure: true
 
 # Настройки провайдера OpenStack (capos)
 capos:
@@ -249,7 +259,10 @@ capos:
   # Соответствие версий Kubernetes образам VM (для аннотации template.shturval.tech/<version>)
   # Используется backend для подбора образа при создании кластера
   kubeTemplates:
-    v1.36.5: shturval-2.15.0
+    # Обязательно заполнить: имя образа ВМ для соответствующей версии Kubernetes.
+    # Чарт остановит рендер, если для текущей kubeVersion нет записи (и image не задан
+    # у master/группы). Значение ниже — пример, замените на свой образ.
+    v1.36.5: shturval-2.15.0  # ПРИМЕР, замените на реальный образ
   # пример:
   # kubeTemplates:
   #   v1.36.5: shturval-2.15.0
