@@ -1,0 +1,84 @@
+{{- $mode := "auto" -}}
+{{- if .Values.infrastructureProvider -}}
+{{- $mode = .Values.infrastructureProvider.create | default "auto" | toString -}}
+{{- end -}}
+{{- $hasCRD := .Capabilities.APIVersions.Has "cluster.shturval.tech/v1beta1/InfrastructureProvider" -}}
+{{- $want := or (eq $mode "true") (and (eq $mode "auto") $hasCRD) -}}
+{{- if and $want .Values.capos.createProviderConfig -}}
+{{- $name := include "capos-cluster.identitySecretName" . -}}
+{{- $ns := "capos-system" -}}
+{{- $found := lookup "cluster.shturval.tech/v1beta1" "InfrastructureProvider" $ns $name -}}
+{{- $owner := "" -}}
+{{- if and $found $found.metadata $found.metadata.annotations -}}
+{{- $owner = index $found.metadata.annotations "meta.helm.sh/release-name" | default "" -}}
+{{- end -}}
+{{- if or (not (and $found $found.metadata)) (eq $owner .Release.Name) }}
+apiVersion: cluster.shturval.tech/v1beta1
+kind: InfrastructureProvider
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "capos-cluster.labels" . | nindent 4 }}
+spec:
+  type: capos
+  {{- if .Values.capos.providerSubtype }}
+  subtype: {{ .Values.capos.providerSubtype | quote }}
+  {{- end }}
+  allowEditCSI: {{ eq (toString .Values.capos.allowEditCSI) "true" }}
+  {{- if .Values.capos.kubeTemplates }}
+  templates:
+  {{- $active := include "capos-cluster.effectiveKubeVersion" . }}
+  {{- range $kubeVersion, $imageName := .Values.capos.kubeTemplates }}
+  {{- if semverCompare (printf "<=%s" $active) (trimPrefix "v" $kubeVersion) }}
+  - kubeVersion: {{ $kubeVersion | quote }}
+    template: {{ $imageName | quote }}
+    {{- if $.Values.capos.templateNetInterface }}
+    templateNetInterface: {{ $.Values.capos.templateNetInterface | quote }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  providerRef:
+    apiVersion: v1
+    kind: Secret
+    name: {{ $name }}
+    namespace: {{ $ns }}
+  config:
+    cloudName: {{ .Values.capos.cloudName | quote }}
+    externalNetworkId: {{ .Values.capos.externalNetworkID | quote }}
+    nodeCIDR: {{ .Values.capos.managedSubnetCIDR | quote }}
+    {{- with .Values.capos.nodeSubnetDNS }}
+    nodeSubnetDNS:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+    {{- end }}
+    {{- with .Values.capos.sshKeyName }}
+    sshKeyName: {{ . | quote }}
+    {{- end }}
+    {{- with .Values.capos.allowedFlavors }}
+    allowedFlavors:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+    {{- end }}
+    {{- with .Values.capos.allowedVolumeTypes }}
+    allowedVolumeTypes:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+    {{- end }}
+    managedSecurityGroups: {{ .Values.capos.managedSecurityGroups.allowAllInClusterTraffic | toString | quote }}
+    disablePortSecurity: {{ .Values.capos.disablePortSecurity | quote }}
+    {{- with .Values.capos.rootVolumeAvailabilityZone }}
+    rootVolumeAvailabilityZone: {{ . | quote }}
+    {{- end }}
+    {{- with .Values.capos.availabilityZones }}
+    availabilityZones:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

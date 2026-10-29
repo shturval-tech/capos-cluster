@@ -85,8 +85,8 @@ helm upgrade --install mycluster . \
 |------|-----------|
 | `shturvalReleaseVersion` | `2.14.0` |
 | `kubeVersion` | `1.35.1` |
-| `images.pause` | образ pause для NCI bootstrap |
-| `images.clusterAutoscaler` | override образа CA (иначе `{systemregistry}/autoscaling/cluster-autoscaler:v{kubeVersion}`) |
+| `images.pause` | переопределение образа pause. Иначе берётся из `conf/releases/<shturvalReleaseVersion>.yaml` |
+| `images.clusterAutoscaler` | полный образ CA. Иначе тег из профиля релиза (`2.15.0` — `v1.36.1-325745`) и реестр `systemregistry` |
 | `services.enabledservices` / `disablesservices` | минимальный набор сервисов 2.14 |
 
 ### `capos` — глобальные настройки OpenStack
@@ -110,6 +110,7 @@ helm upgrade --install mycluster . \
 | `rootVolume` | Размер/тип root-тома по умолчанию |
 | `templateNetInterface` | Имя интерфейса в гостевой ОС для cloud-init |
 | `allowEditCSI`, `providerSubtype`, `disablePortSecurity` | Аннотации/флаги для backend/провайдера |
+| `enableCSI` | `true` — `shturval-capos-csi` и Secret `<identity>-csi` (клон `clouds.yaml`) |
 | `nodeSubnetDNS` | DNS-серверы для managed subnet |
 | `allowedFlavors`, `allowedVolumeTypes` | Ограничения для backend UI |
 | `kubeTemplates` | Маппинг `v<k8s-version> -> image` |
@@ -388,3 +389,21 @@ helm uninstall mycluster
 
 VM и связанные ресурсы удаляются контроллерами Cluster API/CAPOS после удаления
 `MachineDeployment` / `KubeadmControlPlane`.
+
+## Обновление чарта с 2.14 на 2.15
+
+Чарт `2.15` ставит новый кластер Штурвала **2.15.0** (Kubernetes 1.36.5).
+Уже работающий кластер 2.14 этим чартом обновляется только как Helm-релиз:
+машины не пересоздаются и обновление платформы не стартует, если values
+по-прежнему описывают 2.14.
+
+1. Сначала обновите менеджмент-кластер до Штурвала 2.15 (CRD `InfrastructureProvider`, CAPI v1beta2). Потом обновляйте чарты клиентских кластеров.
+2. Возьмите values, которыми кластер ставился (`helm get values <release> -n <namespace> -o yaml`), а не дефолты нового чарта.
+3. Не используйте `--reuse-values` вслепую и не подставляйте голый `--reset-values`: новый чарт по умолчанию содержит `shturvalReleaseVersion: 2.15.0`, `kubeVersion: 1.36.5`, новые теги etcd, pause и kube-vip. Для обновления только чарта оставьте прежние версии.
+4. Предпочтительно `helm upgrade --reset-then-reuse-values` вместе с файлом старых values, затем `helm diff upgrade` (если плагин установлен) или `helm template` / `helm upgrade --dry-run`.
+5. `shturvalReleaseVersion` меняйте только вместе с `platformUpgrade: true`. Иначе при живом кластере чарт останавливает рендер: смена `spec.releaseVersion` запускает обновление платформы. `helm template` и Argo CD не видят объекты кластера (`lookup` пустой), поэтому проверку нужно сделать до apply.
+6. `enabledServices` и `disabledServices` у существующего ClusterConfig чарт не переписывает: webhook запрещает их менять, списки читаются из живого объекта.
+7. `InfrastructureProvider` создаётся только если CRD уже есть (`infrastructureProvider.create: auto`) и объект с тем же именем не принадлежит другому релизу. Нативные секреты и аннотации `shturval.tech/*` чарт не удаляет: они нужны менеджмент-кластеру 2.14 и миграции 2.15.
+8. Поле `services.disablesservices` — явный список. Значение `all` в ClusterConfig не работает (его понимает только REST API backend и нельзя совместить с `enabledServices`). Некритичный сервис, которого нет ни в одном списке и у которого режим по умолчанию `auto`, будет установлен.
+
+Платформенное обновление клиентского кластера 2.14 → 2.15 делайте отдельно, через shturval-update / `platformUpgrade: true`, а не как побочный эффект `helm upgrade`.

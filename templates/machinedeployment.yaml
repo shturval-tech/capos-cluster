@@ -55,6 +55,6 @@ spec:
         apiGroup: infrastructure.cluster.x-k8s.io
         kind: OpenStackMachineTemplate
         name: {{ $.Release.Name }}-{{ $k }}
-      version: v{{ $.Values.kubeVersion }}
+      version: v{{ include "capos-cluster.effectiveKubeVersion" $ }}
 ---
 {{- end }}

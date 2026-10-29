@@ -8,3 +8,9 @@
 .hg/
 .hgignore
 .svn/
+*.swp
+*.bak
+*.tmp
+*~
+.idea/
+.vscode/

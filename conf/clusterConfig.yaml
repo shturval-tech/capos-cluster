@@ -216,7 +216,7 @@ clusterconfig:
     local:
       imagemeta:
         imagerepository: ""
-        imagetag: {{ .Values.etcd.local.imageTag }}
+        imagetag: {{ include "capos-cluster.etcdImageTag" . }}
       datadir: {{ .Values.etcd.local.dataDir }}
       extraargs:{{ toYaml .Values.etcd.local.extraArgs | nindent 8 }}
       servercertsans: []
@@ -227,7 +227,7 @@ clusterconfig:
     servicesubnet: {{ .Values.serviceCIDR }}
     podsubnet: {{ .Values.podCIDR }}
     dnsdomain: cluster.local
-  kubernetesversion: {{ .Values.kubeVersion }}
+  kubernetesversion: {{ include "capos-cluster.effectiveKubeVersion" . }}
   controlplaneendpoint: {{ if .Values.clusterAPI }}{{ .Values.clusterAPI }}:6443{{ end }}
   apiserver:
     controlplanecomponent:
@@ -290,7 +290,7 @@ clusterconfig:
   dns:
     imagemeta:
       imagerepository: ""
-      imagetag: ""
+      imagetag: {{ include "capos-cluster.coreDNSTag" . | quote }}
   certificatesdir: /etc/kubernetes/pki
   imagerepository: r.shturval.tech
   featuregates: {}
