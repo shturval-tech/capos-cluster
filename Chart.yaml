@@ -7,9 +7,11 @@ appVersion: "2.14.0"
 dependencies:
   - name: capsm-cluster-vm
     alias: capos-cluster-vm
+    version: 0.1.0
     repository: capsm-cluster-vm
     condition: capos-cluster-vm.enable
   - name: capsm-cluster-grafana
     alias: capos-cluster-grafana
+    version: 0.1.0
     repository: capsm-cluster-grafana
     condition: capos-cluster-grafana.enable
